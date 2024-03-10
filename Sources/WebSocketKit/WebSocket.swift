@@ -42,6 +42,7 @@ public final class WebSocket: Sendable {
     private let scheduledTimeoutTask: NIOLockedValueBox<Scheduled<Void>?>
     private let frameSequence: NIOLockedValueBox<WebSocketFrameSequence?>
     private let _pingInterval: NIOLockedValueBox<TimeAmount?>
+    private let _bufferedBytes: NIOLockedValueBox<Int>
 
     init(channel: Channel, type: PeerType) {
         self.channel = channel
@@ -56,6 +57,7 @@ public final class WebSocket: Sendable {
         self._closeCode = .init(nil)
         self.frameSequence = .init(nil)
         self._pingInterval = .init(nil)
+        self._bufferedBytes = .init(0)
     }
 
     @preconcurrency public func onText(_ callback: @Sendable @escaping (WebSocket, String) -> ()) {
@@ -337,6 +339,17 @@ public final class WebSocket: Sendable {
 
     deinit {
         assert(self.isClosed, "WebSocket was not closed before deinit.")
+    }
+}
+
+extension WebSocket: BufferWritableMonitorDelegate {
+    func onBufferWritableChanged(amountQueued: Int) {
+        self._bufferedBytes.withLockedValue { $0 = amountQueued }
+//        print("amount queued: \(amountQueued)")
+    }
+    
+    public var bufferedBytes: Int {
+        self._bufferedBytes.withLockedValue { $0 }
     }
 }
 

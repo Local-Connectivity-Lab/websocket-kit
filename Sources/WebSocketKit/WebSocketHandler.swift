@@ -50,10 +50,11 @@ extension WebSocket {
     @preconcurrency
     public static func client(
         on channel: Channel,
+        maxQueueSize: Int,
         config: Configuration,
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
     ) -> EventLoopFuture<Void> {
-        return self.configure(on: channel, as: .client, with: config, onUpgrade: onUpgrade)
+        return self.configure(on: channel, as: .client, maxQueueSize: maxQueueSize, with: config, onUpgrade: onUpgrade)
     }
 
     /// Sets up a channel to operate as a WebSocket server.
@@ -87,6 +88,7 @@ extension WebSocket {
     private static func configure(
         on channel: Channel,
         as type: PeerType,
+        maxQueueSize: Int = 1 << 24,
         with config: Configuration,
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
     ) -> EventLoopFuture<Void> {
@@ -98,9 +100,13 @@ extension WebSocket {
                 maxAccumulatedFrameCount: config.maxAccumulatedFrameCount,
                 maxAccumulatedFrameSize: config.maxAccumulatedFrameSize
             ),
-            WebSocketHandler(webSocket: webSocket)
         ]).map { _ in
-            onUpgrade(webSocket)
+            channel.pipeline.addHandler(BufferWritableMonitorHandler(capacity: maxQueueSize, delegate: webSocket), position: .first).whenSuccess { _ in
+                print(channel.pipeline.debugDescription)
+                onUpgrade(webSocket)
+            }
+        }.flatMapError { error in
+            return channel.eventLoop.makeFailedFuture(error)
         }
     }
 }

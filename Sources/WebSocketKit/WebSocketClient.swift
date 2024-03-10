@@ -73,9 +73,23 @@ public final class WebSocketClient: Sendable {
         headers: HTTPHeaders = [:],
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
     ) -> EventLoopFuture<Void> {
-        self.connect(scheme: scheme, host: host, port: port, path: path, query: query, headers: headers, proxy: nil, onUpgrade: onUpgrade)
+        self.connect(scheme: scheme, host: host, port: port, path: path, query: query, maxQueueSize: 1 << 24, headers: headers, proxy: nil, onUpgrade: onUpgrade)
     }
-
+    
+    @preconcurrency
+    public func connect(
+        scheme: String,
+        host: String,
+        port: Int,
+        path: String = "/",
+        query: String? = nil,
+        headers: HTTPHeaders = [:],
+        maxQueueSize: Int,
+        onUpgrade: @Sendable @escaping (WebSocket) -> ()
+    ) -> EventLoopFuture<Void> {
+        self.connect(scheme: scheme, host: host, port: port, path: path, query: query, maxQueueSize: maxQueueSize, headers: headers, proxy: nil, onUpgrade: onUpgrade)
+    }
+    
     /// Establish a WebSocket connection via a proxy server.
     ///
     /// - Parameters:
@@ -98,6 +112,7 @@ public final class WebSocketClient: Sendable {
         port: Int,
         path: String = "/",
         query: String? = nil,
+        maxQueueSize: Int,
         headers: HTTPHeaders = [:],
         proxy: String?,
         proxyPort: Int? = nil,
@@ -109,6 +124,7 @@ public final class WebSocketClient: Sendable {
         let upgradePromise = self.group.any().makePromise(of: Void.self)
         let bootstrap = WebSocketClient.makeBootstrap(on: self.group)
             .channelOption(ChannelOptions.socket(SocketOptionLevel(IPPROTO_TCP), TCP_NODELAY), value: 1)
+            .channelOption(ChannelOptions.writeBufferWaterMark, value: .init(low: maxQueueSize, high: maxQueueSize))
             .channelInitializer { channel -> EventLoopFuture<Void> in
 
                 let uri: String
@@ -138,7 +154,7 @@ public final class WebSocketClient: Sendable {
                     maxFrameSize: self.configuration.maxFrameSize,
                     automaticErrorHandling: true,
                     upgradePipelineHandler: { channel, req in
-                        return WebSocket.client(on: channel, config: .init(clientConfig: self.configuration), onUpgrade: onUpgrade)
+                        return WebSocket.client(on: channel, maxQueueSize: maxQueueSize, config: .init(clientConfig: self.configuration), onUpgrade: onUpgrade)
                     }
                 )
 
@@ -216,6 +232,7 @@ public final class WebSocketClient: Sendable {
                                 withClientUpgrade: configBox.value
                             )
                             try channel.pipeline.syncOperations.addHandler(httpUpgradeRequestHandlerBox.value)
+//                            try channel.pipeline.syncOperations.addHandler(BufferWritableMonitorHandler(capacity: maxQueueSize), position: .last)
                         } catch {
                             channel.pipeline.close(mode: .all, promise: nil)
                         }
