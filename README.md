@@ -25,3 +25,9 @@
         <img src="http://img.shields.io/badge/swift-5.8-brightgreen.svg" alt="Swift 5.8">
     </a>
 </p>
+
+This is a custom build of Vapor's Websocket Kit. In following changes are made:
+- BufferWritableMonitorDelegate: a delegate that receives the amount of buffered bytes from the channel. This is not the actual representation of buffered bytes in the channel, but more of an estimate.
+- BufferWritableMonitorHandler: a channel duplexer that handles buffering and report the buffered amount to the delegate.
+- writeBufferWaterMark: the water mark that defines the amount of bytes that will be buffered in the channel. 
+- WebSocketClient, WebSocket that uses the aforementioned utilities.
