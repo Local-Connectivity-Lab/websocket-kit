@@ -102,7 +102,6 @@ extension WebSocket {
             ),
         ]).map { _ in
             channel.pipeline.addHandler(BufferWritableMonitorHandler(capacity: maxQueueSize, delegate: webSocket), position: .first).whenSuccess { _ in
-                print(channel.pipeline.debugDescription)
                 onUpgrade(webSocket)
             }
         }.flatMapError { error in

@@ -232,7 +232,6 @@ public final class WebSocketClient: Sendable {
                                 withClientUpgrade: configBox.value
                             )
                             try channel.pipeline.syncOperations.addHandler(httpUpgradeRequestHandlerBox.value)
-//                            try channel.pipeline.syncOperations.addHandler(BufferWritableMonitorHandler(capacity: maxQueueSize), position: .last)
                         } catch {
                             channel.pipeline.close(mode: .all, promise: nil)
                         }

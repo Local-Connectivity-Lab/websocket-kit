@@ -345,7 +345,6 @@ public final class WebSocket: Sendable {
 extension WebSocket: BufferWritableMonitorDelegate {
     func onBufferWritableChanged(amountQueued: Int) {
         self._bufferedBytes.withLockedValue { $0 = amountQueued }
-//        print("amount queued: \(amountQueued)")
     }
     
     public var bufferedBytes: Int {
