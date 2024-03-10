@@ -67,7 +67,7 @@ extension WebSocket {
     public static func connect(
         to url: URL,
         headers: HTTPHeaders = [:],
-        queueSize: Int = 1 << 24,
+        queueSize: Int? = nil,
         configuration: WebSocketClient.Configuration = .init(),
         on eventLoopGroup: EventLoopGroup,
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
@@ -107,7 +107,7 @@ extension WebSocket {
         port: Int = 80,
         path: String = "/",
         query: String? = nil,
-        queueSize: Int = 1 << 24,
+        queueSize: Int? = nil,
         headers: HTTPHeaders = [:],
         configuration: WebSocketClient.Configuration = .init(),
         on eventLoopGroup: EventLoopGroup,

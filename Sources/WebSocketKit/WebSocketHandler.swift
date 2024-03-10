@@ -50,7 +50,7 @@ extension WebSocket {
     @preconcurrency
     public static func client(
         on channel: Channel,
-        maxQueueSize: Int,
+        maxQueueSize: Int? = nil,
         config: Configuration,
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
     ) -> EventLoopFuture<Void> {
@@ -88,7 +88,7 @@ extension WebSocket {
     private static func configure(
         on channel: Channel,
         as type: PeerType,
-        maxQueueSize: Int = 1 << 24,
+        maxQueueSize: Int? = nil,
         with config: Configuration,
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
     ) -> EventLoopFuture<Void> {
@@ -101,7 +101,12 @@ extension WebSocket {
                 maxAccumulatedFrameSize: config.maxAccumulatedFrameSize
             ),
         ]).map { _ in
-            channel.pipeline.addHandler(BufferWritableMonitorHandler(capacity: maxQueueSize, delegate: webSocket), position: .first).whenSuccess { _ in
+            print(channel.pipeline.debugDescription)
+            if let maxQueueSize = maxQueueSize {
+                channel.pipeline.addHandler(BufferWritableMonitorHandler(capacity: maxQueueSize, delegate: webSocket), position: .first).whenSuccess { _ in
+                    onUpgrade(webSocket)
+                }
+            } else {
                 onUpgrade(webSocket)
             }
         }.flatMapError { error in

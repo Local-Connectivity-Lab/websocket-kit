@@ -84,7 +84,7 @@ public final class WebSocketClient: Sendable {
         path: String = "/",
         query: String? = nil,
         headers: HTTPHeaders = [:],
-        maxQueueSize: Int,
+        maxQueueSize: Int? = nil,
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
     ) -> EventLoopFuture<Void> {
         self.connect(scheme: scheme, host: host, port: port, path: path, query: query, maxQueueSize: maxQueueSize, headers: headers, proxy: nil, onUpgrade: onUpgrade)
@@ -112,7 +112,7 @@ public final class WebSocketClient: Sendable {
         port: Int,
         path: String = "/",
         query: String? = nil,
-        maxQueueSize: Int,
+        maxQueueSize: Int? = nil,
         headers: HTTPHeaders = [:],
         proxy: String?,
         proxyPort: Int? = nil,
@@ -124,7 +124,6 @@ public final class WebSocketClient: Sendable {
         let upgradePromise = self.group.any().makePromise(of: Void.self)
         let bootstrap = WebSocketClient.makeBootstrap(on: self.group)
             .channelOption(ChannelOptions.socket(SocketOptionLevel(IPPROTO_TCP), TCP_NODELAY), value: 1)
-            .channelOption(ChannelOptions.writeBufferWaterMark, value: .init(low: maxQueueSize, high: maxQueueSize))
             .channelInitializer { channel -> EventLoopFuture<Void> in
 
                 let uri: String
@@ -219,6 +218,11 @@ public final class WebSocketClient: Sendable {
                     channel.pipeline.removeHandler(decoder.value)
                 }.flatMap {
                     channel.pipeline.removeHandler(encoder.value)
+                }.flatMap {
+                    if let maxQueueSize = maxQueueSize {
+                        return channel.setOption(ChannelOptions.writeBufferWaterMark, value: .init(low: maxQueueSize, high: maxQueueSize))
+                    }
+                    return channel.eventLoop.makeSucceededVoidFuture()
                 }.whenComplete { result in
                     switch result {
                     case .success:
