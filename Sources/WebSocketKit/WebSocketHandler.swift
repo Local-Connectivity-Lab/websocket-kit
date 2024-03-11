@@ -102,12 +102,17 @@ extension WebSocket {
             ),
             WebSocketHandler(webSocket: webSocket)
         ]).map { _ in
-            print(channel.pipeline.debugDescription)
             if let maxQueueSize = maxQueueSize {
                 channel.pipeline.addHandler(BufferWritableMonitorHandler(capacity: maxQueueSize, delegate: webSocket), position: .first).whenSuccess { _ in
+                    #if DEBUG
+                    print(channel.pipeline.debugDescription)
+                    #endif
                     onUpgrade(webSocket)
                 }
             } else {
+                #if DEBUG
+                print(channel.pipeline.debugDescription)
+                #endif
                 onUpgrade(webSocket)
             }
         }.flatMapError { error in
