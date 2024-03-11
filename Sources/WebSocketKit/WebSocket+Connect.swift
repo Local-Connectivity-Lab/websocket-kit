@@ -31,28 +31,6 @@ extension WebSocket {
             onUpgrade: onUpgrade
         )
     }
-    
-    @preconcurrency
-    public static func connect(
-        to url: String,
-        headers: HTTPHeaders = [:],
-        configuration: WebSocketClient.Configuration = .init(),
-        queueSize: Int,
-        on eventLoopGroup: EventLoopGroup,
-        onUpgrade: @Sendable @escaping (WebSocket) -> ()
-    ) -> EventLoopFuture<Void> {
-        guard let url = URL(string: url) else {
-            return eventLoopGroup.any().makeFailedFuture(WebSocketClient.Error.invalidURL)
-        }
-        return self.connect(
-            to: url,
-            headers: headers,
-            queueSize: queueSize,
-            configuration: configuration,
-            on: eventLoopGroup,
-            onUpgrade: onUpgrade
-        )
-    }
 
     /// Establish a WebSocket connection.
     ///
@@ -152,7 +130,6 @@ extension WebSocket {
         port: Int = 80,
         path: String = "/",
         query: String? = nil,
-        queueSize: Int,
         headers: HTTPHeaders = [:],
         proxy: String?,
         proxyPort: Int? = nil,
@@ -171,7 +148,6 @@ extension WebSocket {
             port: port,
             path: path,
             query: query,
-            maxQueueSize: queueSize,
             headers: headers,
             proxy: proxy,
             proxyPort: proxyPort,
@@ -197,7 +173,6 @@ extension WebSocket {
     @preconcurrency
     public static func connect(
         to url: String,
-        queueSize: Int,
         headers: HTTPHeaders = [:],
         proxy: String?,
         proxyPort: Int? = nil,
@@ -216,8 +191,7 @@ extension WebSocket {
             host: url.host ?? "localhost",
             port: url.port ?? (scheme == "wss" ? 443 : 80),
             path: url.path,
-            query: url.query, 
-            queueSize: queueSize,
+            query: url.query,
             headers: headers,
             proxy: proxy,
             proxyPort: proxyPort,

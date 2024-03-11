@@ -73,7 +73,7 @@ public final class WebSocketClient: Sendable {
         headers: HTTPHeaders = [:],
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
     ) -> EventLoopFuture<Void> {
-        self.connect(scheme: scheme, host: host, port: port, path: path, query: query, maxQueueSize: 1 << 24, headers: headers, proxy: nil, onUpgrade: onUpgrade)
+        self.connect(scheme: scheme, host: host, port: port, path: path, query: query, headers: headers, proxy: nil, onUpgrade: onUpgrade)
     }
     
     @preconcurrency
