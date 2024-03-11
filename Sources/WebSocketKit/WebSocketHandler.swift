@@ -100,6 +100,7 @@ extension WebSocket {
                 maxAccumulatedFrameCount: config.maxAccumulatedFrameCount,
                 maxAccumulatedFrameSize: config.maxAccumulatedFrameSize
             ),
+            WebSocketHandler(webSocket: webSocket)
         ]).map { _ in
             print(channel.pipeline.debugDescription)
             if let maxQueueSize = maxQueueSize {
