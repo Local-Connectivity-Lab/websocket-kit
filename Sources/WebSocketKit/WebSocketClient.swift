@@ -182,6 +182,11 @@ public final class WebSocketClient: Sendable {
                         leftOverBytesStrategy: .forwardBytes,
                         withClientUpgrade: config
                     ).flatMap {
+                        if let maxQueueSize = maxQueueSize {
+                            return channel.setOption(ChannelOptions.writeBufferWaterMark, value: .init(low: maxQueueSize, high: maxQueueSize))
+                        }
+                        return channel.eventLoop.makeSucceededVoidFuture()
+                    }.flatMap {
                         channel.pipeline.addHandler(httpUpgradeRequestHandlerBox.value)
                     }
                 }
