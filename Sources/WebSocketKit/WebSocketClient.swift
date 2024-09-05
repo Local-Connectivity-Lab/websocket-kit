@@ -23,7 +23,7 @@ public final class WebSocketClient: Sendable {
 
     public struct Configuration: Sendable {
         public var tlsConfiguration: TLSConfiguration?
-        public var maxFrameSize: Int
+        public var maxFrameSize: Int = 1 << 24
 
         /// Defends against small payloads in frame aggregation.
         /// See `NIOWebSocketFrameAggregator` for details.
@@ -37,7 +37,7 @@ public final class WebSocketClient: Sendable {
 
         public init(
             tlsConfiguration: TLSConfiguration? = nil,
-            maxFrameSize: Int = 1 << 14
+            maxFrameSize: Int = 1 << 24
         ) {
             self.tlsConfiguration = tlsConfiguration
             self.maxFrameSize = maxFrameSize
@@ -71,11 +71,11 @@ public final class WebSocketClient: Sendable {
         path: String = "/",
         query: String? = nil,
         headers: HTTPHeaders = [:],
-        onUpgrade: @Sendable @escaping (WebSocket) -> ()
+        onUpgrade: @Sendable @escaping (WebSocket) -> Void
     ) -> EventLoopFuture<Void> {
         self.connect(scheme: scheme, host: host, port: port, path: path, query: query, headers: headers, proxy: nil, onUpgrade: onUpgrade)
     }
-    
+
     @preconcurrency
     public func connect(
         scheme: String,
@@ -85,11 +85,11 @@ public final class WebSocketClient: Sendable {
         query: String? = nil,
         headers: HTTPHeaders = [:],
         maxQueueSize: Int? = nil,
-        onUpgrade: @Sendable @escaping (WebSocket) -> ()
+        onUpgrade: @Sendable @escaping (WebSocket) -> Void
     ) -> EventLoopFuture<Void> {
         self.connect(scheme: scheme, host: host, port: port, path: path, query: query, maxQueueSize: maxQueueSize, headers: headers, proxy: nil, onUpgrade: onUpgrade)
     }
-    
+
     /// Establish a WebSocket connection via a proxy server.
     ///
     /// - Parameters:
@@ -118,7 +118,7 @@ public final class WebSocketClient: Sendable {
         proxyPort: Int? = nil,
         proxyHeaders: HTTPHeaders = [:],
         proxyConnectDeadline: NIODeadline = NIODeadline.distantFuture,
-        onUpgrade: @Sendable @escaping (WebSocket) -> ()
+        onUpgrade: @Sendable @escaping (WebSocket) -> Void
     ) -> EventLoopFuture<Void> {
         assert(["ws", "wss"].contains(scheme))
         let upgradePromise = self.group.any().makePromise(of: Void.self)
@@ -152,14 +152,14 @@ public final class WebSocketClient: Sendable {
                 let websocketUpgrader = NIOWebSocketClientUpgrader(
                     maxFrameSize: self.configuration.maxFrameSize,
                     automaticErrorHandling: true,
-                    upgradePipelineHandler: { channel, req in
+                    upgradePipelineHandler: { channel, _ in
                         return WebSocket.client(on: channel, maxQueueSize: maxQueueSize, config: .init(clientConfig: self.configuration), onUpgrade: onUpgrade)
                     }
                 )
 
                 let config: NIOHTTPClientUpgradeConfiguration = (
                     upgraders: [websocketUpgrader],
-                    completionHandler: { context in
+                    completionHandler: { _ in
                         upgradePromise.succeed(())
                         channel.pipeline.removeHandler(httpUpgradeRequestHandlerBox.value, promise: nil)
                     }
@@ -254,16 +254,24 @@ public final class WebSocketClient: Sendable {
 
         let connect = bootstrap.connect(host: proxy ?? host, port: proxyPort ?? port)
         connect.cascadeFailure(to: upgradePromise)
-        return connect.flatMap { channel in
+        return connect.flatMap { _ in
             return upgradePromise.futureResult
         }
     }
 
     @Sendable
     private func makeTLSHandler(tlsConfiguration: TLSConfiguration?, host: String) throws -> NIOSSLClientHandler {
+        var tlsConfig: TLSConfiguration
+        if self.configuration.tlsConfiguration == nil {
+            tlsConfig = .makeClientConfiguration()
+            tlsConfig.certificateVerification = .none
+        } else {
+            tlsConfig = self.configuration.tlsConfiguration!
+        }
         let context = try NIOSSLContext(
-            configuration: self.configuration.tlsConfiguration ?? .makeClientConfiguration()
+            configuration: tlsConfig
         )
+
         let tlsHandler: NIOSSLClientHandler
         do {
             tlsHandler = try NIOSSLClientHandler(context: context, serverHostname: host)
@@ -289,7 +297,7 @@ public final class WebSocketClient: Sendable {
             }
         }
     }
-    
+
     private static func makeBootstrap(on eventLoop: EventLoopGroup) -> NIOClientTCPBootstrapProtocol {
         #if canImport(Network)
         if let tsBootstrap = NIOTSConnectionBootstrap(validatingGroup: eventLoop) {

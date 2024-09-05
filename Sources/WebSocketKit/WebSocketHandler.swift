@@ -36,7 +36,7 @@ extension WebSocket {
     @preconcurrency
     public static func client(
         on channel: Channel,
-        onUpgrade: @Sendable @escaping (WebSocket) -> ()
+        onUpgrade: @Sendable @escaping (WebSocket) -> Void
     ) -> EventLoopFuture<Void> {
         return self.configure(on: channel, as: .client, with: Configuration(), onUpgrade: onUpgrade)
     }
@@ -52,7 +52,7 @@ extension WebSocket {
         on channel: Channel,
         maxQueueSize: Int? = nil,
         config: Configuration,
-        onUpgrade: @Sendable @escaping (WebSocket) -> ()
+        onUpgrade: @Sendable @escaping (WebSocket) -> Void
     ) -> EventLoopFuture<Void> {
         return self.configure(on: channel, as: .client, maxQueueSize: maxQueueSize, with: config, onUpgrade: onUpgrade)
     }
@@ -65,7 +65,7 @@ extension WebSocket {
     @preconcurrency
     public static func server(
         on channel: Channel,
-        onUpgrade: @Sendable @escaping (WebSocket) -> ()
+        onUpgrade: @Sendable @escaping (WebSocket) -> Void
     ) -> EventLoopFuture<Void> {
         return self.configure(on: channel, as: .server, with: Configuration(), onUpgrade: onUpgrade)
     }
@@ -80,7 +80,7 @@ extension WebSocket {
     public static func server(
         on channel: Channel,
         config: Configuration,
-        onUpgrade: @Sendable @escaping (WebSocket) -> ()
+        onUpgrade: @Sendable @escaping (WebSocket) -> Void
     ) -> EventLoopFuture<Void> {
         return self.configure(on: channel, as: .server, with: config, onUpgrade: onUpgrade)
     }
@@ -90,7 +90,7 @@ extension WebSocket {
         as type: PeerType,
         maxQueueSize: Int? = nil,
         with config: Configuration,
-        onUpgrade: @Sendable @escaping (WebSocket) -> ()
+        onUpgrade: @Sendable @escaping (WebSocket) -> Void
     ) -> EventLoopFuture<Void> {
         let webSocket = WebSocket(channel: channel, type: type)
 
@@ -102,19 +102,10 @@ extension WebSocket {
             ),
             WebSocketHandler(webSocket: webSocket)
         ]).map { _ in
-            if let maxQueueSize = maxQueueSize {
-                channel.pipeline.addHandler(BufferWritableMonitorHandler(capacity: maxQueueSize, delegate: webSocket), position: .first).whenSuccess { _ in
-                    #if DEBUG
-                    print(channel.pipeline.debugDescription)
-                    #endif
-                    onUpgrade(webSocket)
-                }
-            } else {
-                #if DEBUG
-                print(channel.pipeline.debugDescription)
-                #endif
-                onUpgrade(webSocket)
-            }
+             #if DEBUG
+             print(channel.pipeline.debugDescription)
+             #endif
+            onUpgrade(webSocket)
         }.flatMapError { error in
             return channel.eventLoop.makeFailedFuture(error)
         }

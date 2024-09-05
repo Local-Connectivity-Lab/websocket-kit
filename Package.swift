@@ -7,17 +7,17 @@ let package = Package(
         .macOS(.v10_15),
         .iOS(.v13),
         .watchOS(.v6),
-        .tvOS(.v13),
+        .tvOS(.v13)
     ],
     products: [
-        .library(name: "WebSocketKit", targets: ["WebSocketKit"]),
+        .library(name: "WebSocketKit", targets: ["WebSocketKit"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.53.0"),
+        .package(url: "https://github.com/johnnzhou/swift-nio.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.16.0"),
         .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.24.0"),
         .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.16.0"),
-        .package(url: "https://github.com/apple/swift-atomics.git", from: "1.1.0"),
+        .package(url: "https://github.com/apple/swift-atomics.git", from: "1.1.0")
     ],
     targets: [
         .target(name: "WebSocketKit", dependencies: [
@@ -32,7 +32,7 @@ let package = Package(
             .product(name: "Atomics", package: "swift-atomics")
         ]),
         .testTarget(name: "WebSocketKitTests", dependencies: [
-            .target(name: "WebSocketKit"),
-        ]),
+            .target(name: "WebSocketKit")
+        ])
     ]
 )

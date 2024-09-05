@@ -22,20 +22,24 @@ public final class WebSocket: Sendable {
     public var closeCode: WebSocketErrorCode? {
         _closeCode.withLockedValue { $0 }
     }
-    
+
     private let _closeCode: NIOLockedValueBox<WebSocketErrorCode?>
 
     public var onClose: EventLoopFuture<Void> {
         self.channel.closeFuture
     }
 
+    public var allocator: ByteBufferAllocator {
+        self.channel.allocator
+    }
+
     @usableFromInline
     /* private but @usableFromInline */
     internal let channel: Channel
-    private let onTextCallback: NIOLoopBoundBox<@Sendable (WebSocket, String) -> ()>
-    private let onBinaryCallback: NIOLoopBoundBox<@Sendable (WebSocket, ByteBuffer) -> ()>
-    private let onPongCallback: NIOLoopBoundBox<@Sendable (WebSocket, ByteBuffer) -> ()>
-    private let onPingCallback: NIOLoopBoundBox<@Sendable (WebSocket, ByteBuffer) -> ()>
+    private let onTextCallback: NIOLoopBoundBox<@Sendable (WebSocket, String) -> Void>
+    private let onBinaryCallback: NIOLoopBoundBox<@Sendable (WebSocket, ByteBuffer) -> Void>
+    private let onPongCallback: NIOLoopBoundBox<@Sendable (WebSocket, ByteBuffer) -> Void>
+    private let onPingCallback: NIOLoopBoundBox<@Sendable (WebSocket, ByteBuffer) -> Void>
     private let type: PeerType
     private let waitingForPong: NIOLockedValueBox<Bool>
     private let waitingForClose: NIOLockedValueBox<Bool>
@@ -60,29 +64,29 @@ public final class WebSocket: Sendable {
         self._bufferedBytes = .init(0)
     }
 
-    @preconcurrency public func onText(_ callback: @Sendable @escaping (WebSocket, String) -> ()) {
+    @preconcurrency public func onText(_ callback: @Sendable @escaping (WebSocket, String) -> Void) {
         self.onTextCallback.value = callback
     }
 
-    @preconcurrency public func onBinary(_ callback: @Sendable @escaping (WebSocket, ByteBuffer) -> ()) {
+    @preconcurrency public func onBinary(_ callback: @Sendable @escaping (WebSocket, ByteBuffer) -> Void) {
         self.onBinaryCallback.value = callback
     }
-    
-    public func onPong(_ callback: @Sendable @escaping (WebSocket, ByteBuffer) -> ()) {
+
+    public func onPong(_ callback: @Sendable @escaping (WebSocket, ByteBuffer) -> Void) {
         self.onPongCallback.value = callback
     }
-    
+
     @available(*, deprecated, message: "Please use `onPong { socket, data in /* … */ }` with the additional `data` parameter.")
-    @preconcurrency public func onPong(_ callback: @Sendable @escaping (WebSocket) -> ()) {
+    @preconcurrency public func onPong(_ callback: @Sendable @escaping (WebSocket) -> Void) {
         self.onPongCallback.value = { ws, _ in callback(ws) }
     }
 
-    public func onPing(_ callback: @Sendable @escaping (WebSocket, ByteBuffer) -> ()) {
+    public func onPing(_ callback: @Sendable @escaping (WebSocket, ByteBuffer) -> Void) {
         self.onPingCallback.value = callback
     }
-    
+
     @available(*, deprecated, message: "Please use `onPing { socket, data in /* … */ }` with the additional `data` parameter.")
-    @preconcurrency public func onPing(_ callback: @Sendable @escaping (WebSocket) -> ()) {
+    @preconcurrency public func onPing(_ callback: @Sendable @escaping (WebSocket) -> Void) {
         self.onPingCallback.value = { ws, _ in callback(ws) }
     }
 
@@ -111,8 +115,7 @@ public final class WebSocket: Sendable {
 
     @inlinable
     public func send<S>(_ text: S, promise: EventLoopPromise<Void>? = nil)
-        where S: Collection, S.Element == Character
-    {
+        where S: Collection, S.Element == Character {
         let string = String(text)
         let buffer = channel.allocator.buffer(string: string)
         self.send(buffer, opcode: .text, fin: true, promise: promise)
@@ -143,8 +146,7 @@ public final class WebSocket: Sendable {
         fin: Bool = true,
         promise: EventLoopPromise<Void>? = nil
     )
-        where Data: DataProtocol
-    {
+        where Data: DataProtocol {
         if let byteBufferView = data as? ByteBufferView {
             // optimisation: converting from `ByteBufferView` to `ByteBuffer` doesn't allocate or copy any data
             send(ByteBuffer(byteBufferView), opcode: opcode, fin: fin, promise: promise)
@@ -342,13 +344,9 @@ public final class WebSocket: Sendable {
     }
 }
 
-extension WebSocket: BufferWritableMonitorDelegate {
-    func onBufferWritableChanged(amountQueued: Int) {
-        self._bufferedBytes.withLockedValue { $0 = amountQueued }
-    }
-    
-    public var bufferedBytes: Int {
-        self._bufferedBytes.withLockedValue { $0 }
+extension WebSocket {
+    public func getBufferedBytes() -> EventLoopFuture<Int> {
+        return channel.getOption(.bufferedWritableBytes)
     }
 }
 
