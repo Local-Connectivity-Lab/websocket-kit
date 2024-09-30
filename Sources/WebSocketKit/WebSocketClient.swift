@@ -14,6 +14,7 @@ public final class WebSocketClient: Sendable {
         case invalidURL
         case invalidResponseStatus(HTTPResponseHead)
         case alreadyShutdown
+        case invalidAddress
         public var errorDescription: String? {
             return "\(self)"
         }
@@ -85,9 +86,10 @@ public final class WebSocketClient: Sendable {
         query: String? = nil,
         headers: HTTPHeaders = [:],
         maxQueueSize: Int? = nil,
+        deviceName: String? = nil,
         onUpgrade: @Sendable @escaping (WebSocket) -> Void
     ) -> EventLoopFuture<Void> {
-        self.connect(scheme: scheme, host: host, port: port, path: path, query: query, maxQueueSize: maxQueueSize, headers: headers, proxy: nil, onUpgrade: onUpgrade)
+        self.connect(scheme: scheme, host: host, port: port, path: path, query: query, maxQueueSize: maxQueueSize, headers: headers, proxy: nil, deviceName: deviceName, onUpgrade: onUpgrade)
     }
 
     /// Establish a WebSocket connection via a proxy server.
@@ -103,6 +105,7 @@ public final class WebSocketClient: Sendable {
     ///   - proxyPort: Port on which to connect to the proxy server.
     ///   - proxyHeaders: Headers to send to the proxy server.
     ///   - proxyConnectDeadline: Deadline for establishing the proxy connection.
+    ///   - deviceName: the device to which the data will be sent.
     ///   - onUpgrade: An escaping closure to be executed after the upgrade is completed by `NIOWebSocketClientUpgrader`.
     /// - Returns: A future which completes when the connection to the origin server is established.
     @preconcurrency
@@ -118,6 +121,7 @@ public final class WebSocketClient: Sendable {
         proxyPort: Int? = nil,
         proxyHeaders: HTTPHeaders = [:],
         proxyConnectDeadline: NIODeadline = NIODeadline.distantFuture,
+        deviceName: String? = nil,
         onUpgrade: @Sendable @escaping (WebSocket) -> Void
     ) -> EventLoopFuture<Void> {
         assert(["ws", "wss"].contains(scheme))
@@ -137,6 +141,51 @@ public final class WebSocketClient: Sendable {
 
                     if scheme == "ws" {
                         upgradeRequestHeaders.add(contentsOf: proxyHeaders)
+                    }
+                }
+
+                let resolvedAddress: SocketAddress
+                do {
+                    resolvedAddress = try SocketAddress.makeAddressResolvingHost(host, port: port)
+                } catch {
+                    return channel.eventLoop.makeFailedFuture(error)
+                }
+
+                var bindDevice: NIONetworkDevice?
+                do {
+                    for device in try System.enumerateDevices() {
+                        if device.name == deviceName, let address = device.address {
+                            switch (address.protocol, resolvedAddress.protocol) {
+                            case (.inet, .inet), (.inet6, .inet6):
+                                bindDevice = device
+                            default:
+                                continue
+                            }
+                        }
+                        if bindDevice != nil {
+                            break
+                        }
+                    }
+                } catch {
+                    return channel.eventLoop.makeFailedFuture(error)
+                }
+
+                func bindToDevice() -> EventLoopFuture<Void> {
+                    if let device = bindDevice {
+                        #if canImport(Darwin)
+                        switch device.address {
+                        case .v4:
+                            return channel.setOption(.ipOption(.ip_bound_if), value: CInt(device.interfaceIndex))
+                        case .v6:
+                            return channel.setOption(.ipv6Option(.ipv6_bound_if), value: CInt(device.interfaceIndex))
+                        default:
+                            return channel.eventLoop.makeFailedFuture(WebSocketClient.Error.invalidAddress)
+                        }
+                        #elseif canImport(Glibc)
+                        return channel.setOption(.socketOption(.so_bindtodevice), value: device.interfaceIndex)
+                        #endif
+                    } else {
+                        return channel.eventLoop.makeSucceededVoidFuture()
                     }
                 }
 
@@ -177,11 +226,12 @@ public final class WebSocketClient: Sendable {
                             return channel.pipeline.close(mode: .all)
                         }
                     }
-
                     return channel.pipeline.addHTTPClientHandlers(
                         leftOverBytesStrategy: .forwardBytes,
                         withClientUpgrade: config
                     ).flatMap {
+                        return bindToDevice()
+                    }.flatMap {
                         if let maxQueueSize = maxQueueSize {
                             return channel.setOption(ChannelOptions.writeBufferWaterMark, value: .init(low: maxQueueSize, high: maxQueueSize))
                         }
@@ -228,6 +278,8 @@ public final class WebSocketClient: Sendable {
                         return channel.setOption(ChannelOptions.writeBufferWaterMark, value: .init(low: maxQueueSize, high: maxQueueSize))
                     }
                     return channel.eventLoop.makeSucceededVoidFuture()
+                }.flatMap {
+                    return bindToDevice()
                 }.whenComplete { result in
                     switch result {
                     case .success:
