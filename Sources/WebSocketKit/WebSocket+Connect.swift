@@ -37,6 +37,8 @@ extension WebSocket {
     /// - Parameters:
     ///   - url: URL for the WebSocket server.
     ///   - headers: Headers to send to the WebSocket server.
+    ///   - queueSize: the size of the buffer queue.
+    ///   - deviceName: the device to which the data will be sent.
     ///   - configuration: Configuration for the WebSocket client.
     ///   - eventLoopGroup: Event loop group to be used by the WebSocket client.
     ///   - onUpgrade: An escaping closure to be executed after the upgrade is completed by `NIOWebSocketClientUpgrader`.
@@ -46,6 +48,7 @@ extension WebSocket {
         to url: URL,
         headers: HTTPHeaders = [:],
         queueSize: Int? = nil,
+        deviceName: String? = nil,
         configuration: WebSocketClient.Configuration = .init(),
         on eventLoopGroup: EventLoopGroup,
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
@@ -59,6 +62,7 @@ extension WebSocket {
             query: url.query,
             queueSize: queueSize,
             headers: headers,
+            deviceName: deviceName,
             configuration: configuration,
             on: eventLoopGroup,
             onUpgrade: onUpgrade
@@ -74,6 +78,7 @@ extension WebSocket {
     ///   - path: Path component of the URI for the WebSocket server.
     ///   - query: Query component of the URI for the WebSocket server.
     ///   - headers: Headers to send to the WebSocket server.
+    ///   - deviceName: the device to which the data will be sent.
     ///   - configuration: Configuration for the WebSocket client.
     ///   - eventLoopGroup: Event loop group to be used by the WebSocket client.
     ///   - onUpgrade: An escaping closure to be executed after the upgrade is completed by `NIOWebSocketClientUpgrader`.
@@ -87,6 +92,7 @@ extension WebSocket {
         query: String? = nil,
         queueSize: Int? = nil,
         headers: HTTPHeaders = [:],
+        deviceName: String? = nil,
         configuration: WebSocketClient.Configuration = .init(),
         on eventLoopGroup: EventLoopGroup,
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
@@ -102,6 +108,7 @@ extension WebSocket {
             query: query,
             headers: headers,
             maxQueueSize: queueSize,
+            deviceName: deviceName,
             onUpgrade: onUpgrade
         )
     }
@@ -119,6 +126,7 @@ extension WebSocket {
     ///   - proxyPort: Port on which to connect to the proxy server.
     ///   - proxyHeaders: Headers to send to the proxy server.
     ///   - proxyConnectDeadline: Deadline for establishing the proxy connection.
+    ///   - deviceName: the device to which the data will be sent.
     ///   - configuration: Configuration for the WebSocket client.
     ///   - eventLoopGroup: Event loop group to be used by the WebSocket client.
     ///   - onUpgrade: An escaping closure to be executed after the upgrade is completed by `NIOWebSocketClientUpgrader`.
@@ -135,6 +143,7 @@ extension WebSocket {
         proxyPort: Int? = nil,
         proxyHeaders: HTTPHeaders = [:],
         proxyConnectDeadline: NIODeadline = NIODeadline.distantFuture,
+        deviceName: String? = nil,
         configuration: WebSocketClient.Configuration = .init(),
         on eventLoopGroup: EventLoopGroup,
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
@@ -153,6 +162,7 @@ extension WebSocket {
             proxyPort: proxyPort,
             proxyHeaders: proxyHeaders,
             proxyConnectDeadline: proxyConnectDeadline,
+            deviceName: deviceName,
             onUpgrade: onUpgrade
         )
     }
@@ -166,6 +176,7 @@ extension WebSocket {
     ///   - proxyPort: Port on which to connect to the proxy server.
     ///   - proxyHeaders: Headers to send to the proxy server.
     ///   - proxyConnectDeadline: Deadline for establishing the proxy connection.
+    ///   - deviceName: the device to which the data will be sent.
     ///   - configuration: Configuration for the WebSocket client.
     ///   - eventLoopGroup: Event loop group to be used by the WebSocket client.
     ///   - onUpgrade: An escaping closure to be executed after the upgrade is completed by `NIOWebSocketClientUpgrader`.
@@ -178,6 +189,7 @@ extension WebSocket {
         proxyPort: Int? = nil,
         proxyHeaders: HTTPHeaders = [:],
         proxyConnectDeadline: NIODeadline = NIODeadline.distantFuture,
+        deviceName: String? = nil,
         configuration: WebSocketClient.Configuration = .init(),
         on eventLoopGroup: EventLoopGroup,
         onUpgrade: @Sendable @escaping (WebSocket) -> ()
@@ -197,6 +209,7 @@ extension WebSocket {
             proxyPort: proxyPort,
             proxyHeaders: proxyHeaders,
             proxyConnectDeadline: proxyConnectDeadline,
+            deviceName: deviceName,
             on: eventLoopGroup,
             onUpgrade: onUpgrade
         )
