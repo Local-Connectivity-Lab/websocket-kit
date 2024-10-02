@@ -181,7 +181,7 @@ public final class WebSocketClient: Sendable {
                         default:
                             return channel.eventLoop.makeFailedFuture(WebSocketClient.Error.invalidAddress)
                         }
-                        #elseif canImport(Glibc)
+                        #elseif canImport(Glibc) || canImport(Musl)
                         return (channel as! SocketOptionProvider).setBindToDevice(device.name)
                         #endif
                     } else {
